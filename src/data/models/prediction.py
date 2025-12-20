@@ -17,4 +17,4 @@ class Prediction(Base):
     input_data_hash = Column(String(64), index=True)
     created_at = Column(TIMESTAMP, server_default=func.now(), index=True)
     valid_until = Column(TIMESTAMP)
-    metadata = Column(JSONB)
+    meta_data = Column("metadata", JSONB)

@@ -6,11 +6,11 @@ from decimal import Decimal
 
 class CandleDataBase(BaseModel):
     timestamp: datetime
-    open: Decimal = Field(..., decimal_places=8)
-    high: Decimal = Field(..., decimal_places=8)
-    low: Decimal = Field(..., decimal_places=8)
-    close: Decimal = Field(..., decimal_places=8)
-    volume: Decimal = Field(..., decimal_places=8)
+    open: Decimal = Field(...)
+    high: Decimal = Field(...)
+    low: Decimal = Field(...)
+    close: Decimal = Field(...)
+    volume: Decimal = Field(...)
     timeframe: str = Field(..., max_length=10)
 
 

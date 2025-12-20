@@ -17,7 +17,9 @@ class GeminiAdapter(BaseAIModel):
             raise ValueError("Google API key is required")
         
         genai.configure(api_key=api_key)
-        self.model_name = config.get("model_identifier", "gemini-pro")
+        
+        from src.config import settings
+        self.model_name = config.get("model_identifier", settings.DEFAULT_GEMINI_MODEL)
         self.model = genai.GenerativeModel(self.model_name)
         self.temperature = config.get("temperature", 0.7)
     
@@ -38,6 +40,38 @@ class GeminiAdapter(BaseAIModel):
             )
             
             content = response.text
+            print(f"DEBUG - Raw response length: {len(content)}")
+            print(f"DEBUG - Raw response (first 300 chars): {content[:300]}")
+            
+            if not content or not content.strip():
+                raise ValueError(f"Empty response from Gemini. Response object: {response}")
+            
+            logger.info(f"Gemini raw response: {content[:500]}")
+            
+            # Extract JSON from markdown code block if present
+            if "```json" in content or "```" in content:
+                # Find the JSON block
+                import re
+                # Match ```json ... ``` or ``` ... ```
+                json_match = re.search(r'```(?:json)?\s*\n(.*?)\n```', content, re.DOTALL)
+                if json_match:
+                    content = json_match.group(1).strip()
+                    print(f"DEBUG - Extracted JSON from markdown block")
+                else:
+                    # Fallback: remove first and last ``` lines
+                    lines = content.strip().split("\n")
+                    if lines[0].startswith("```"):
+                        lines = lines[1:]
+                    if lines and lines[-1].strip() == "```":
+                        lines = lines[:-1]
+                    content = "\n".join(lines)
+            
+            print(f"DEBUG - Cleaned content (first 300 chars): {content[:300]}")
+            logger.info(f"Gemini cleaned content: {content[:500]}")
+            
+            if not content.strip():
+                raise ValueError("Content is empty after cleaning markdown")
+            
             result = json.loads(content)
             
             return PredictionOutput(

@@ -10,7 +10,7 @@ class NewsDataBase(BaseModel):
     source: Optional[str] = Field(None, max_length=200)
     url: Optional[str] = None
     published_at: datetime
-    sentiment_score: Optional[Decimal] = Field(None, ge=-1.0, le=1.0, decimal_places=2)
+    sentiment_score: Optional[Decimal] = Field(None, ge=-1.0, le=1.0)
     coins: Optional[List[str]] = None
 
 

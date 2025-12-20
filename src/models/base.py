@@ -3,7 +3,7 @@ from abc import ABC
 from src.core.interfaces import AIModelInterface
 
 
-class BaseAIModel(ABC, AIModelInterface):
+class BaseAIModel(AIModelInterface):
     def __init__(self, config: Dict[str, Any]):
         self.config = config
         self.provider = config.get("provider", "unknown")

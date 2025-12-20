@@ -9,9 +9,16 @@ class Settings(BaseSettings):
     CACHE_TTL: int = 3600
     
     API_HOST: str = "0.0.0.0"
-    API_PORT: int = 8000
+    API_PORT: int = 8001
     
-    DEFAULT_MODEL_PROVIDER: str = "openai"
+    DEFAULT_MODEL_PROVIDER: str = "gemini"
+    
+    # Model identifiers
+    DEFAULT_GEMINI_MODEL: str = "gemini-2.5-flash"
+    DEFAULT_OPENAI_MODEL: str = "gpt-4-turbo-preview"
+    DEFAULT_ANTHROPIC_MODEL: str = "claude-3-sonnet-20240229"
+    
+    # API Keys
     OPENAI_API_KEY: Optional[str] = None
     ANTHROPIC_API_KEY: Optional[str] = None
     GOOGLE_API_KEY: Optional[str] = None

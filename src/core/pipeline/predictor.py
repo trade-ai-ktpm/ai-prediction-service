@@ -91,10 +91,10 @@ class PredictionPipeline:
                 timeframe=cached.timeframe,
                 predicted_value=cached.predicted_value,
                 confidence_score=cached.confidence_score,
-                reasoning=cached.metadata.get("reasoning", ""),
+                reasoning=cached.meta_data.get("reasoning", "") if cached.meta_data else "",
                 created_at=cached.created_at,
                 valid_until=cached.valid_until,
-                metadata=cached.metadata
+                metadata=cached.meta_data
             )
         
         provider = model_name or settings.DEFAULT_MODEL_PROVIDER
@@ -144,7 +144,7 @@ class PredictionPipeline:
             reasoning=result.reasoning,
             created_at=saved_prediction.created_at,
             valid_until=saved_prediction.valid_until,
-            metadata=saved_prediction.metadata
+            metadata=saved_prediction.meta_data
         )
     
     async def _get_model_config(self, provider: str) -> dict:
@@ -155,13 +155,13 @@ class PredictionPipeline:
         }
         
         if provider == "openai":
-            config["model_identifier"] = "gpt-4-turbo-preview"
+            config["model_identifier"] = settings.DEFAULT_OPENAI_MODEL
             config["api_key"] = settings.OPENAI_API_KEY
         elif provider == "anthropic":
-            config["model_identifier"] = "claude-3-sonnet-20240229"
+            config["model_identifier"] = settings.DEFAULT_ANTHROPIC_MODEL
             config["api_key"] = settings.ANTHROPIC_API_KEY
         elif provider == "gemini":
-            config["model_identifier"] = "gemini-pro"
+            config["model_identifier"] = settings.DEFAULT_GEMINI_MODEL
             config["api_key"] = settings.GOOGLE_API_KEY
         else:
             raise ModelNotFoundError(f"Unknown provider: {provider}")
