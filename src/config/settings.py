@@ -1,5 +1,6 @@
 from pydantic_settings import BaseSettings
 from typing import Optional
+import os
 
 
 class Settings(BaseSettings):
@@ -11,7 +12,7 @@ class Settings(BaseSettings):
     API_HOST: str = "0.0.0.0"
     API_PORT: int = 8001
     
-    DEFAULT_MODEL_PROVIDER: str = "gemini"
+    DEFAULT_MODEL_PROVIDER: str = os.getenv("AI_PROVIDER", "gemini")
     
     # Model identifiers
     DEFAULT_GEMINI_MODEL: str = "gemini-2.5-flash"
@@ -21,7 +22,7 @@ class Settings(BaseSettings):
     # API Keys
     OPENAI_API_KEY: Optional[str] = None
     ANTHROPIC_API_KEY: Optional[str] = None
-    GOOGLE_API_KEY: Optional[str] = None
+    GEMINI_API_KEY: Optional[str] = None
     
     MAX_CANDLES: int = 100
     MAX_NEWS: int = 50

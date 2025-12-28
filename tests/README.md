@@ -18,7 +18,7 @@ Tất cả Docker containers đang chạy:
 docker exec -it ai-prediction-api python tests/test_ai_module.py
 ```
 
-**Lưu ý:** Bạn cần có `GOOGLE_API_KEY` trong file `.env` để test Gemini adapter!
+**Lưu ý:** Bạn cần có `GEMINI_API_KEY` trong file `.env` để test Gemini adapter!
 
 ---
 
@@ -27,7 +27,7 @@ docker exec -it ai-prediction-api python tests/test_ai_module.py
 Đảm bảo file `.env` có:
 
 ```bash
-GOOGLE_API_KEY=your_actual_google_api_key_here
+GEMINI_API_KEY=your_actual_google_api_key_here
 ```
 
 Nếu chưa có, thêm API key vào `.env` rồi restart container:
@@ -68,14 +68,14 @@ Nếu test chạy thành công, bạn sẽ thấy:
 
 ## 🔧 Troubleshooting
 
-### Lỗi: "GOOGLE_API_KEY không được set"
+### Lỗi: "GEMINI_API_KEY không được set"
 
 ```bash
 # Kiểm tra .env
-cat .env | grep GOOGLE_API_KEY
+cat .env | grep GEMINI_API_KEY
 
 # Nếu chưa có, thêm vào .env
-echo "GOOGLE_API_KEY=your_key_here" >> .env
+echo "GEMINI_API_KEY=your_key_here" >> .env
 
 # Restart API container
 docker compose -f docker/docker-compose.yml restart api

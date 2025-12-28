@@ -21,7 +21,9 @@ class PredictionResponse(BaseModel):
     timeframe: str
     predicted_value: Dict[str, Any]
     confidence_score: Optional[Decimal]
-    reasoning: str
+    reasoning: Optional[str] = None
+    status: str = "COMPLETED"
+    error_message: Optional[str] = None
     created_at: datetime
     valid_until: Optional[datetime]
     metadata: Optional[Dict[str, Any]]
@@ -32,12 +34,14 @@ class PredictionResponse(BaseModel):
 
 class PredictionCreate(BaseModel):
     coin_id: int
-    model_name: str
+    model_name: str = "pending"
     model_version: Optional[str] = None
     prediction_type: str
     timeframe: str
-    predicted_value: Dict[str, Any]
+    predicted_value: Dict[str, Any] = {}
     confidence_score: Optional[Decimal] = None
     input_data_hash: Optional[str] = None
+    status: str = "PENDING"
+    error_message: Optional[str] = None
     valid_until: Optional[datetime] = None
     metadata: Optional[Dict[str, Any]] = None

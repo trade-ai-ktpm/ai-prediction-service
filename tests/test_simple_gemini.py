@@ -11,7 +11,7 @@ load_dotenv()
 import google.generativeai as genai
 
 async def test_simple():
-    api_key = os.getenv("GOOGLE_API_KEY")
+    api_key = os.getenv("GEMINI_API_KEY")
     print(f"API Key: {api_key[:20]}...")
     
     genai.configure(api_key=api_key)

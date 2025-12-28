@@ -66,9 +66,9 @@ async def test_gemini_adapter():
     print("🧪 Testing Gemini Adapter (gemini-2.5-flash)")
     print("="*60)
     
-    api_key = os.getenv("GOOGLE_API_KEY")
+    api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
-        print("❌ GOOGLE_API_KEY không được set trong .env")
+        print("❌ GEMINI_API_KEY không được set trong .env")
         return
     
     config = {
