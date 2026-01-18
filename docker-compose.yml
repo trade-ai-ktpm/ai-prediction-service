@@ -7,12 +7,12 @@ services:
     command: sh /app/start.sh
     environment:
       - API_PORT=8002
-      - DATABASE_URL=postgresql+asyncpg://aiuser:ngocphat@timescaledb-ai:5432/aidb
-      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=${DATABASE_URL_DOCKER}
+      - REDIS_URL=${REDIS_URL_DOCKER}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-      - PREDICTION_CACHE_TTL=300
+      - PREDICTION_CACHE_TTL=${PREDICTION_CACHE_TTL}
     networks:
       - backend-network
     restart: unless-stopped
