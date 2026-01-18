@@ -6,8 +6,11 @@ import asyncio
 
 logger = get_logger(__name__)
 
-TOP_COINS = ['BTC', 'ETH', 'SOL', 'BNB', 'ADA', 'XRP', 'DOT', 'DOGE', 'MATIC', 'AVAX']
-TIMEFRAMES = ['1h', '4h', '1d']
+# Top coins to precompute (with USDT suffix for frontend compatibility)
+TOP_COINS = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'ADAUSDT', 
+             'XRPUSDT', 'DOGEUSDT', 'DOTUSDT', 'MATICUSDT', 'AVAXUSDT']
+# Only 1h timeframe for 10-minute ahead predictions
+TIMEFRAMES = ['1h']
 
 
 @celery_app.task(name="src.tasks.precompute_task.precompute_top_coins")
@@ -38,17 +41,18 @@ async def _precompute_all():
                         model_name=settings.DEFAULT_MODEL_PROVIDER
                     )
                     
+                    # Cache with "latest" key for easy frontend access
                     cache_key = f"pred:latest:{coin}:{timeframe}"
                     await cache_manager.set(
                         cache_key,
                         result.dict(),
-                        ttl=1200
+                        ttl=300  # 5 minutes until next precompute
                     )
                     
                     success += 1
-                    logger.info(f"Pre-computed {coin} {timeframe}")
+                    logger.info(f"✅ Pre-computed {coin} {timeframe} (valid for 5min)")
                     
                 except Exception as e:
-                    logger.error(f"Failed to pre-compute {coin} {timeframe}: {str(e)}")
+                    logger.error(f"❌ Failed to pre-compute {coin} {timeframe}: {str(e)}")
     
     return {"total": total, "success": success, "failed": total - success}

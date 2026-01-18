@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     CACHE_TTL: int = 3600
     
     API_HOST: str = "0.0.0.0"
-    API_PORT: int = 8001
+    API_PORT: int = 8002
     
     DEFAULT_MODEL_PROVIDER: str = os.getenv("AI_PROVIDER", "gemini")
     
@@ -25,7 +25,9 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: Optional[str] = None
     
     MAX_CANDLES: int = 100
-    MAX_NEWS: int = 50
+    MAX_NEWS: int = int(os.getenv("MAX_NEWS", "20"))
+    NEWS_DAYS: int = int(os.getenv("NEWS_DAYS", "3"))
+    NEWS_CONTENT_MAX_LENGTH: int = int(os.getenv("NEWS_CONTENT_MAX_LENGTH", "500"))
     
     LOG_LEVEL: str = "INFO"
     

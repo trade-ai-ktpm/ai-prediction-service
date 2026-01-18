@@ -36,6 +36,7 @@ class GeminiAdapter(BaseAIModel):
                 prompt,
                 generation_config=genai.types.GenerationConfig(
                     temperature=self.temperature,
+                    max_output_tokens=4096,  # Tăng lên để tránh truncate
                 )
             )
             
@@ -72,7 +73,41 @@ class GeminiAdapter(BaseAIModel):
             if not content.strip():
                 raise ValueError("Content is empty after cleaning markdown")
             
-            result = json.loads(content)
+            # Remove control characters that are invalid in JSON
+            import re
+            content = re.sub(r'[\x00-\x1f\x7f-\x9f]', ' ', content)
+            
+            # Check if JSON is truncated and try to fix it
+            if not content.rstrip().endswith('}'):
+                logger.warning("Response appears truncated, attempting to fix...")
+                # Try to close unclosed JSON structures
+                open_braces = content.count('{') - content.count('}')
+                open_brackets = content.count('[') - content.count(']')
+                
+                if open_brackets > 0:
+                    content += ']' * open_brackets
+                if open_braces > 0:
+                    content += '}' * open_braces
+                
+                logger.info(f"Added {open_brackets} brackets and {open_braces} braces to close JSON")
+            
+            try:
+                result = json.loads(content)
+            except json.JSONDecodeError as json_err:
+                logger.error(f"JSON parsing failed at position {json_err.pos}")
+                logger.error(f"Full response length: {len(content)}")
+                logger.error(f"Response around error (chars {max(0, json_err.pos-100)}:{json_err.pos+100}):")
+                logger.error(content[max(0, json_err.pos-100):json_err.pos+100])
+                
+                # Don't log full content in production to avoid log spam
+                if len(content) < 5000:
+                    logger.error(f"Full response content:\n{content}")
+                else:
+                    logger.error(f"Response too long ({len(content)} chars), showing first 2000 and last 500:")
+                    logger.error(f"START:\n{content[:2000]}")
+                    logger.error(f"END:\n{content[-500:]}")
+                
+                raise ValueError(f"Invalid JSON from Gemini: {str(json_err)}")
             
             return PredictionOutput(
                 predicted_value=result.get("prediction", {}),

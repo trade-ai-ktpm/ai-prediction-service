@@ -15,6 +15,8 @@ class PredictionOutput(BaseModel):
     confidence_score: float
     reasoning: str
     metadata: Dict[str, Any]
+    model_name: str | None = None
+    model_version: str | None = None
 
 
 class AIModelInterface(ABC):

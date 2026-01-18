@@ -15,6 +15,8 @@ class Prediction(Base):
     predicted_value = Column(JSONB, nullable=False)
     confidence_score = Column(DECIMAL(3, 2))
     input_data_hash = Column(String(64), index=True)
+    status = Column(String(20), server_default="PENDING")
+    error_message = Column(String(500))
     created_at = Column(TIMESTAMP, server_default=func.now(), index=True)
     valid_until = Column(TIMESTAMP)
     meta_data = Column("metadata", JSONB)

@@ -1,9 +1,21 @@
 from typing import Optional
+from datetime import datetime
+from decimal import Decimal
 import redis.asyncio as redis
 from src.config import settings, get_logger
 import json
 
 logger = get_logger(__name__)
+
+
+class CustomJSONEncoder(json.JSONEncoder):
+    """Custom JSON encoder for datetime and Decimal"""
+    def default(self, obj):
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        if isinstance(obj, Decimal):
+            return float(obj)
+        return super().default(obj)
 
 
 class CacheManager:
@@ -55,7 +67,7 @@ class CacheManager:
             await self.redis_client.setex(
                 key,
                 ttl,
-                json.dumps(value)
+                json.dumps(value, cls=CustomJSONEncoder)
             )
         except Exception as e:
             logger.error(f"Cache set error: {str(e)}")

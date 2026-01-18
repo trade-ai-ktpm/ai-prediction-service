@@ -22,8 +22,8 @@ celery_app.conf.update(
 )
 
 celery_app.conf.beat_schedule = {
-    "precompute-top-coins-every-15-minutes": {
+    "precompute-top-coins-every-5-minutes": {
         "task": "src.tasks.precompute_task.precompute_top_coins",
-        "schedule": 900.0,
+        "schedule": 300.0,  # 5 minutes
     },
 }

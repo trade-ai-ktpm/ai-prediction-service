@@ -1,7 +1,7 @@
 from typing import Optional
 from datetime import datetime, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.core.interfaces import AIModelInterface, PredictionInput, PredictionResult
+from src.core.interfaces import AIModelInterface, PredictionInput, PredictionOutput
 from src.data.repositories import CoinRepository, CandleRepository, NewsRepository, PredictionRepository
 from src.models.factory import ModelFactory
 from src.schemas.prediction import PredictionCreate, PredictionResponse
@@ -28,68 +28,65 @@ class PredictionPipeline:
         prediction_type: str = "price",
         model_name: Optional[str] = None
     ) -> PredictionResponse:
-        """Entry point for async predictions - checks cache and enqueues task if needed"""
+        """Synchronous prediction - executes immediately and returns result"""
         coin = await self.coin_repo.get_by_symbol(coin_symbol)
         if not coin:
             raise InvalidInputError(f"Coin {coin_symbol} not found")
         
-        # Tier 1: Check Redis cache (pre-computed)
-        cache_key = f"pred:latest:{coin_symbol}:{timeframe}"
+        # Check Redis cache first (5 minutes TTL)
+        cache_key = f"pred:sync:{coin_symbol}:{timeframe}"
         cached_data = await cache_manager.get(cache_key)
         if cached_data:
-            logger.info(f"Cache HIT (tier 1) for {coin_symbol} {timeframe}")
+            logger.info(f"Cache HIT for {coin_symbol} {timeframe}")
             return PredictionResponse(**cached_data)
         
-        # Tier 2: Check DB cache (recent predictions)
-        db_cached = await self.prediction_repo.get_latest_by_coin(
-            coin.id,
-            timeframe,
-            prediction_type,
-            max_age_hours=1
-        )
-        if db_cached:
-            logger.info(f"Cache HIT (tier 2) for {coin_symbol} {timeframe}")
-            response = PredictionResponse(
-                id=db_cached.id,
-                coin_id=db_cached.coin_id,
-                coin_symbol=coin_symbol,
-                model_name=db_cached.model_name,
-                model_version=db_cached.model_version,
-                prediction_type=db_cached.prediction_type,
-                timeframe=db_cached.timeframe,
-                predicted_value=db_cached.predicted_value,
-                confidence_score=db_cached.confidence_score,
-                reasoning=db_cached.meta_data.get("reasoning") if db_cached.meta_data else None,
-                status=db_cached.status,
-                created_at=db_cached.created_at,
-                valid_until=db_cached.valid_until,
-                metadata=db_cached.meta_data
-            )
-            # Warm Redis cache
-            await cache_manager.set(cache_key, response.dict(), ttl=1200)
-            return response
+        logger.info(f"Cache MISS for {coin_symbol} {timeframe} - executing prediction now")
         
-        # Tier 3: Create PENDING prediction and enqueue task
-        logger.info(f"Cache MISS for {coin_symbol} {timeframe} - creating async task")
-        
-        prediction_create = PredictionCreate(
-            coin_id=coin.id,
-            prediction_type=prediction_type,
+        # Execute prediction immediately
+        result = await self.execute_prediction(
+            coin_symbol=coin_symbol,
             timeframe=timeframe,
-            status="PENDING"
+            prediction_type=prediction_type,
+            model_name=model_name
         )
         
-        pending_prediction = await self.prediction_repo.create(prediction_create)
+        # Build response with news sources
+        sources = []
+        if result.metadata and "news_ids" in result.metadata:
+            for news_id in result.metadata["news_ids"][:5]:
+                news = await self.news_repo.get_by_id(news_id)
+                if news:
+                    sources.append({
+                        "title": news.title,
+                        "source": news.source,
+                        "url": news.url,
+                        "published_at": news.published_at.isoformat() if news.published_at else None
+                    })
         
-        # Enqueue Celery task
-        from src.tasks.prediction_task import create_prediction_task
-        task = create_prediction_task.delay(
-            pending_prediction.id,
-            coin_symbol,
-            timeframe,
-            prediction_type,
-            model_name
+        response = PredictionResponse(
+            id=result.id,
+            coin_id=result.coin_id,
+            coin_symbol=coin_symbol,
+            model_name=result.model_name,
+            model_version=result.model_version,
+            prediction_type=result.prediction_type,
+            timeframe=result.timeframe,
+            predicted_value=result.predicted_value,
+            confidence_score=result.confidence_score,
+            reasoning=result.metadata.get("reasoning") if result.metadata else None,
+            status="COMPLETED",
+            error_message=None,
+            created_at=result.created_at,
+            valid_until=result.valid_until,
+            metadata=result.metadata,
+            sources=sources if sources else None
         )
+        
+        # Cache for 8 minutes (less than 10min prediction duration)
+        await cache_manager.set(cache_key, response.dict(), ttl=480)
+        logger.info(f"Cached prediction for {coin_symbol} {timeframe} (8min TTL)")
+        
+        return response
         
         return PredictionResponse(
             id=pending_prediction.id,
@@ -114,7 +111,7 @@ class PredictionPipeline:
         timeframe: str,
         prediction_type: str = "price",
         model_name: Optional[str] = None
-    ) -> PredictionResult:
+    ) -> PredictionOutput:
         """Execute actual AI prediction - called by Celery task"""
         coin = await self.coin_repo.get_by_symbol(coin_symbol)
         if not coin:
@@ -149,10 +146,22 @@ class PredictionPipeline:
         news_data = [
             {
                 "title": n.title,
-                "published_at": str(n.published_at),
-                "sentiment_score": float(n.sentiment_score) if n.sentiment_score else None
+                "content": n.content[:500] if n.content else "",
+                "source": n.source,
+                "url": n.url,
+                "published_at": str(n.published_at)
             }
             for n in news
+        ]
+        
+        news_sources = [
+            {
+                "title": n.title,
+                "source": n.source,
+                "url": n.url,
+                "published_at": str(n.published_at)
+            }
+            for n in news[:10]
         ]
         
         provider = model_name or settings.DEFAULT_MODEL_PROVIDER
@@ -173,7 +182,29 @@ class PredictionPipeline:
         result.model_name = model_info["model"]
         result.model_version = model_info["version"]
         
-        return result
+        result.metadata = result.metadata or {}
+        result.metadata["sources"] = news_sources
+        result.metadata["news_ids"] = [n.id for n in news[:5]]
+        result.metadata["reasoning"] = result.reasoning
+        
+        # Save to database
+        prediction_create = PredictionCreate(
+            coin_id=coin.id,
+            model_name=result.model_name,
+            model_version=result.model_version,
+            prediction_type=prediction_type,
+            timeframe=timeframe,
+            predicted_value=result.predicted_value,
+            confidence_score=result.confidence_score,
+            status="COMPLETED",
+            metadata=result.metadata,
+            valid_until=datetime.utcnow() + timedelta(hours=1)
+        )
+        
+        saved_prediction = await self.prediction_repo.create(prediction_create)
+        logger.info(f"Saved prediction ID: {saved_prediction.id} for {coin_symbol}")
+        
+        return saved_prediction
     
     async def _get_model_config(self, provider: str) -> dict:
         config = {

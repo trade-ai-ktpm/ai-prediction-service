@@ -1,7 +1,14 @@
-from typing import Optional, Dict, Any
-from pydantic import BaseModel, Field
+from typing import Optional, Dict, Any, List
+from pydantic import BaseModel, Field, field_serializer
 from datetime import datetime
 from decimal import Decimal
+
+
+class NewsSource(BaseModel):
+    title: str
+    source: str
+    url: str
+    published_at: str
 
 
 class PredictionRequest(BaseModel):
@@ -20,13 +27,18 @@ class PredictionResponse(BaseModel):
     prediction_type: str
     timeframe: str
     predicted_value: Dict[str, Any]
-    confidence_score: Optional[Decimal]
+    confidence_score: Optional[float]
+    
+    @field_serializer('confidence_score')
+    def serialize_confidence(self, value: Optional[Decimal]) -> Optional[float]:
+        return float(value) if value is not None else None
     reasoning: Optional[str] = None
     status: str = "COMPLETED"
     error_message: Optional[str] = None
     created_at: datetime
     valid_until: Optional[datetime]
     metadata: Optional[Dict[str, Any]]
+    sources: Optional[List[NewsSource]] = None
     
     class Config:
         from_attributes = True

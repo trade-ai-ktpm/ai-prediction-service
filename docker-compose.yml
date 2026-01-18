@@ -1,0 +1,23 @@
+services:
+  ai-prediction-service:
+    build: .
+    container_name: ai-prediction-service
+    ports:
+      - "8002:8002"
+    command: sh /app/start.sh
+    environment:
+      - API_PORT=8002
+      - DATABASE_URL=postgresql+asyncpg://aiuser:ngocphat@timescaledb-ai:5432/aidb
+      - REDIS_URL=redis://redis:6379
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - PREDICTION_CACHE_TTL=300
+    networks:
+      - backend-network
+    restart: unless-stopped
+
+networks:
+  backend-network:
+    external: true
+    name: backend-network
