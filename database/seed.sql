@@ -1,18 +1,5 @@
--- Seed initial coins data
-INSERT INTO coins (symbol, name) VALUES
-    ('BTCUSDT', 'Bitcoin'),
-    ('ETHUSDT', 'Ethereum'),
-    ('BNBUSDT', 'Binance Coin'),
-    ('SOLUSDT', 'Solana'),
-    ('ADAUSDT', 'Cardano'),
-    ('XRPUSDT', 'Ripple'),
-    ('DOGEUSDT', 'Dogecoin'),
-    ('DOTUSDT', 'Polkadot'),
-    ('MATICUSDT', 'Polygon'),
-    ('LINKUSDT', 'Chainlink')
-ON CONFLICT (symbol) DO NOTHING;
-
 -- Seed default model configuration (Gemini)
+-- Note: Coins seed data is now in crypto-infrastructure/init-timescaledb.sql
 INSERT INTO model_configs (name, provider, model_identifier, config, is_active) VALUES
     (
         'gemini-default',
