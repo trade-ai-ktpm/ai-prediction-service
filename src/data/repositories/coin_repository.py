@@ -6,28 +6,10 @@ from src.config import get_logger
 
 logger = get_logger(__name__)
 
-# Symbol mapping: Frontend symbols -> Database symbols
-SYMBOL_MAPPING = {
-    'BTCUSDT': 'BTC',
-    'ETHUSDT': 'ETH',
-    'BNBUSDT': 'BNB',
-    'SOLUSDT': 'SOL',
-    'ADAUSDT': 'ADA',
-    'XRPUSDT': 'XRP',
-    'DOGEUSDT': 'DOGE',
-    'DOTUSDT': 'DOT',
-    'MATICUSDT': 'MATIC',
-    'AVAXUSDT': 'AVAX',
-}
-
 
 class CoinRepository:
     def __init__(self, db: AsyncSession):
         self.db = db
-    
-    def normalize_symbol(self, symbol: str) -> str:
-        """Convert frontend symbol (e.g., BTCUSDT) to database symbol (e.g., BTC)"""
-        return SYMBOL_MAPPING.get(symbol, symbol)
     
     async def get_by_id(self, coin_id: int) -> Optional[Coin]:
         result = await self.db.execute(
@@ -36,10 +18,9 @@ class CoinRepository:
         return result.scalar_one_or_none()
     
     async def get_by_symbol(self, symbol: str) -> Optional[Coin]:
-        # Normalize symbol before querying
-        normalized_symbol = self.normalize_symbol(symbol)
+        # Query directly with full symbol (e.g., BTCUSDT)
         result = await self.db.execute(
-            select(Coin).where(Coin.symbol == normalized_symbol)
+            select(Coin).where(Coin.symbol == symbol)
         )
         return result.scalar_one_or_none()
     

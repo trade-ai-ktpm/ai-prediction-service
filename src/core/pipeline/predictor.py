@@ -164,7 +164,14 @@ class PredictionPipeline:
             for n in news[:10]
         ]
         
-        provider = model_name or settings.DEFAULT_MODEL_PROVIDER
+        # Parse provider from model_name if provided
+        # model_name can be: "gemini", "gemini-default", "openai-gpt4", etc.
+        if model_name:
+            # Extract provider (first part before hyphen)
+            provider = model_name.split('-')[0]
+        else:
+            provider = settings.DEFAULT_MODEL_PROVIDER
+        
         model_config = await self._get_model_config(provider)
         
         model = ModelFactory.create_model(provider, model_config)

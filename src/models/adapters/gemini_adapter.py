@@ -31,82 +31,90 @@ class GeminiAdapter(BaseAIModel):
         else:
             prompt = build_price_prediction_prompt(input_data)
         
+        # Define JSON schema to enforce strict JSON output
+        response_schema = {
+            "type": "object",
+            "properties": {
+                "prediction": {
+                    "type": "object",
+                    "properties": {
+                        "price_direction": {"type": "string"},
+                        "estimated_price_range": {
+                            "type": "object",
+                            "properties": {
+                                "low": {"type": "number"},
+                                "high": {"type": "number"}
+                            },
+                            "required": ["low", "high"]
+                        },
+                        "trajectory": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "time_offset_seconds": {"type": "integer"},
+                                    "price": {"type": "number"}
+                                },
+                                "required": ["time_offset_seconds", "price"]
+                            }
+                        },
+                        "key_levels": {
+                            "type": "object",
+                            "properties": {
+                                "support": {
+                                    "type": "array",
+                                    "items": {"type": "number"}
+                                },
+                                "resistance": {
+                                    "type": "array",
+                                    "items": {"type": "number"}
+                                }
+                            },
+                            "required": ["support", "resistance"]
+                        }
+                    },
+                    "required": ["price_direction", "estimated_price_range", "trajectory", "key_levels"]
+                },
+                "confidence": {"type": "number"},
+                "reasoning": {"type": "string"}
+            },
+            "required": ["prediction", "confidence", "reasoning"]
+        }
+        
         try:
             response = await self.model.generate_content_async(
                 prompt,
                 generation_config=genai.types.GenerationConfig(
                     temperature=self.temperature,
-                    max_output_tokens=4096,  # Tăng lên để tránh truncate
+                    max_output_tokens=8192,
+                    candidate_count=1,
+                    response_mime_type="application/json",
+                    response_schema=response_schema,
                 )
             )
             
+            # Debug: Check finish_reason and safety_ratings
+            if hasattr(response, 'candidates') and response.candidates:
+                candidate = response.candidates[0]
+                logger.info(f"Gemini finish_reason: {candidate.finish_reason}")
+                if hasattr(candidate, 'safety_ratings'):
+                    logger.info(f"Gemini safety_ratings: {candidate.safety_ratings}")
+            
             content = response.text
-            print(f"DEBUG - Raw response length: {len(content)}")
-            print(f"DEBUG - Raw response (first 300 chars): {content[:300]}")
+            logger.info(f"Gemini raw response length: {len(content)}")
             
             if not content or not content.strip():
                 raise ValueError(f"Empty response from Gemini. Response object: {response}")
             
             logger.info(f"Gemini raw response: {content[:500]}")
             
-            # Extract JSON from markdown code block if present
-            if "```json" in content or "```" in content:
-                # Find the JSON block
-                import re
-                # Match ```json ... ``` or ``` ... ```
-                json_match = re.search(r'```(?:json)?\s*\n(.*?)\n```', content, re.DOTALL)
-                if json_match:
-                    content = json_match.group(1).strip()
-                    print(f"DEBUG - Extracted JSON from markdown block")
-                else:
-                    # Fallback: remove first and last ``` lines
-                    lines = content.strip().split("\n")
-                    if lines[0].startswith("```"):
-                        lines = lines[1:]
-                    if lines and lines[-1].strip() == "```":
-                        lines = lines[:-1]
-                    content = "\n".join(lines)
-            
-            print(f"DEBUG - Cleaned content (first 300 chars): {content[:300]}")
-            logger.info(f"Gemini cleaned content: {content[:500]}")
-            
-            if not content.strip():
-                raise ValueError("Content is empty after cleaning markdown")
-            
-            # Remove control characters that are invalid in JSON
-            import re
-            content = re.sub(r'[\x00-\x1f\x7f-\x9f]', ' ', content)
-            
-            # Check if JSON is truncated and try to fix it
-            if not content.rstrip().endswith('}'):
-                logger.warning("Response appears truncated, attempting to fix...")
-                # Try to close unclosed JSON structures
-                open_braces = content.count('{') - content.count('}')
-                open_brackets = content.count('[') - content.count(']')
-                
-                if open_brackets > 0:
-                    content += ']' * open_brackets
-                if open_braces > 0:
-                    content += '}' * open_braces
-                
-                logger.info(f"Added {open_brackets} brackets and {open_braces} braces to close JSON")
-            
+            # With response_schema, Gemini should return pure JSON
+            # No need for complex extraction logic
             try:
                 result = json.loads(content)
             except json.JSONDecodeError as json_err:
-                logger.error(f"JSON parsing failed at position {json_err.pos}")
-                logger.error(f"Full response length: {len(content)}")
-                logger.error(f"Response around error (chars {max(0, json_err.pos-100)}:{json_err.pos+100}):")
-                logger.error(content[max(0, json_err.pos-100):json_err.pos+100])
-                
-                # Don't log full content in production to avoid log spam
-                if len(content) < 5000:
-                    logger.error(f"Full response content:\n{content}")
-                else:
-                    logger.error(f"Response too long ({len(content)} chars), showing first 2000 and last 500:")
-                    logger.error(f"START:\n{content[:2000]}")
-                    logger.error(f"END:\n{content[-500:]}")
-                
+                logger.error(f"JSON parsing failed: {str(json_err)}")
+                logger.error(f"Response content: {content}")
                 raise ValueError(f"Invalid JSON from Gemini: {str(json_err)}")
             
             return PredictionOutput(
